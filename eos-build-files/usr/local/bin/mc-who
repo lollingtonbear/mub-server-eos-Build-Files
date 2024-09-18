@@ -1,0 +1,54 @@
+#!/bin/bash
+
+### INFORMATION #################################################################################################
+
+# Script Name    :  mc-who
+# Orginal Author :  Andy Sibthorp
+# Version        :  1.3
+# Date           :  18/09/2024
+
+### SCRIPT ######################################################################################################
+
+cyan='\033[1;36m'
+white='\033[1;37m'
+lightred='\033[1;31m'
+
+IFS=$'\n'
+confListOfServers=/usr/local/etc/minecraft-servers-list.conf
+arrListOfServers=($(cat "$confListOfServers"))
+
+strPlayername="$1"
+
+echo ""
+echo -e "${cyan}Who is logged into the Minecraft servers?"
+echo -e "${white}"
+
+IFS=$'\n'
+for strServerDetails in "${arrListOfServers[@]}"
+do :
+    IFS=","
+    arrServerDetails=($strServerDetails)
+    strServerName=${arrServerDetails[0]}
+    strServerIP=${arrServerDetails[1]}
+    strPortNum=${arrServerDetails[2]}
+    strRconPass=${arrServerDetails[3]}
+    echo -e "Server: ${white}$strServerName"
+
+
+    /usr/bin/mcrcon -H $strServerIP -P $strPortNum -p $strRconPass who 2> /dev/null
+    if [ $? -ne 0 ]
+    then
+        echo -e "${lightred}Failed to connect to server!"
+    else
+        if [ "$1" != "" ]
+        then
+            /usr/bin/mcrcon -H $strServerIP -P $strPortNum -p $strRconPass "seen $strPlayername" 2> /dev/null
+        fi
+    fi
+    echo -e "${white}"
+done
+
+
+### The End ##########################################################################################################
+
+exit 0

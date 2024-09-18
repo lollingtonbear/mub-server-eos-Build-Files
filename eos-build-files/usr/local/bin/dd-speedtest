@@ -1,0 +1,77 @@
+#!/bin/bash
+
+### INFORMATION ######################################################################################################
+
+# Script Name    :  dd-speedtest
+# Version        :  1.0
+# Orginal Author :  Andy Sibthorp
+
+
+# Assigning default settings for bs (buffer size) and count
+ddbs="1M"
+ddcount=1024
+
+# Set default temp file location. This will also the be drive that gets tested.
+ddtempfile=$PWD/dd-speedtest-tempfile
+
+
+# Change the default settings for bs (buffer size) and count to whatever is in the b and c cmd line parameters. 
+while getopts "b:c:t:" opt
+do
+	case ${opt} in
+		b)
+			ddbs="${OPTARG}"
+			;;
+		c)
+			ddcount="${OPTARG}"
+			;;
+		:)
+			echo "Option -${OPTARG} requires an argument."
+			exit 1
+			;;
+		?)
+			echo "Invalid option: -${OPTARG}."
+			exit 1
+			;;
+	esac
+done
+
+
+# Start
+echo "Starting dd speed test"
+echo ""
+echo "Tempfile      : $ddtempfile"
+echo "Buffer Size   : $ddbs"
+echo "Repeate Count : $ddcount"
+echo ""
+
+echo "Direct Write test . . ."
+dd if=/dev/zero of=./dd-speedtest-tempfile bs=$ddbs count=$ddcount conv=fdatasync,notrunc status=progress
+echo ""
+
+echo "Clearing the buffer-cache . . ."
+echo 3 > /proc/sys/vm/drop_caches
+echo ""
+
+echo "Direct Read Test . . ."
+dd if=./dd-speedtest-tempfile of=/dev/null bs=$ddbs count=$ddcount status=progress
+echo ""
+
+echo "Now that the last file is in the buffer, repeating read test to see the speed of the buffer-cache."
+echo ""
+for loopNum in {1..5}
+do
+	echo "Buffered Read test loop $loopNum . . ."
+	dd if=./dd-speedtest-tempfile of=/dev/null bs=$ddbs count=$ddcount status=progress
+	echo ""
+done
+
+echo "Manually review the buffered read test results to get an average."
+echo ""
+
+echo "Deleting tempfile"
+rm ./dd-speedtest-tempfile
+echo ""
+
+echo "dd speed test finsihed"
+echo ""

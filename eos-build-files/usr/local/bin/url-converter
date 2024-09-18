@@ -1,0 +1,11 @@
+#!/bin/bash
+#case-insensitive
+shopt -s nocaseglob
+#give folder as argument or execute in current directory
+[ -n "${1}" -a -d "${1}" ] && cd "${1}"
+for file in *.url
+do
+	URLLINE=$(grep -Ei url= "$file")
+	FILENAME=`echo $(basename "$file") | cut -d'.' -f1`
+echo -ne "[Desktop Entry]\nType=Link\n$URLLINE" > "$FILENAME.desktop"
+done

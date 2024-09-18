@@ -1,0 +1,53 @@
+#!/bin/bash
+
+### INFORMATION #################################################################################################
+
+# Script Name    :  reset-dirperms
+# Version        :  1.1
+# Orginal Author :  Andy Sibthorp
+
+### SCRIPT ######################################################################################################
+
+LIGHTCYAN='\033[1;36m'
+LIGHTRED='\033[1;31m'
+WHITE='\033[1;37m'
+LIGHTGREEN='\033[1;32m'
+
+echo -e "\n${LIGHTCYAN}** Reset File and Directory Script **\n"
+
+# Do sudo check up front
+sudo touch .
+if [ $? != 0 ]
+then
+    echo -e "${LIGHTRED}AUTHENTICATION ERROR"
+    echo -e "${WHITE}Requires sudo authentication. Learn to type."
+    exit
+fi
+
+
+echo -e "${LIGHTCYAN}Resetting ownership and permissions on the following paths . . .${WHITE}"
+echo "/home/mub"
+sudo chown -R mub:mub /home/mub
+sudo chmod 770 /home/mub -R
+
+
+echo "/opt"
+sudo chown root:root /opt
+sudo chmod 775 /opt
+
+echo "/opt/temp"
+sudo chown mub:mub /opt/temp
+sudo chmod 775 /opt/temp
+
+echo "/usr/local/bin"
+sudo chown -R root:root /usr/local/bin
+sudo chmod 755 /usr/local/bin -R
+sudo chmod +x /usr/local/bin
+
+echo "/usr/local/etc"
+sudo chown -R root:root /usr/local/etc
+sudo chmod 755 /usr/local/etc -R
+
+echo -e "\n${LIGHTCYAN}Permissions reset process finished.\n"
+
+# END

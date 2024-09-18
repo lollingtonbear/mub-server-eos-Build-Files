@@ -1,0 +1,162 @@
+#!/bin/bash
+
+### INFORMATION ######################################################################################################
+
+# Script Name    :  backup-eos-build-files
+# Orginal Author :  Andy Sibthorp
+# Version        :  1.6
+# Date           :  18/09/2024
+
+### SCRIPT ###########################################################################################################
+
+strOutputLogFile=/mnt/ssd-02/Logs/backup-server-build-files.log
+rm $strOutputLogFile
+exec 1> >(tee -a "$strOutputLogFile") 2>&1
+
+echo -e "\n** Backup Server Build Files Script **\n"
+
+
+strSourcesListFile=/usr/local/etc/backup-eos-build-files.conf
+strTargetRootDir=/home/mub/eos-build-files
+
+
+# Check the sources list exists
+echo -n "Reading Sources File List"
+if [ -f $strSourcesListFile ]
+then
+	# Read the sources list
+	IFS=$'\n'
+	arrSourcesList=($(cat "$strSourcesListFile" 2> /dev/null))
+	if [ $? -ne 0 ]
+	then
+		echo " [FAILED]"
+		echo ""
+		echo "Could not read the file. Probably a permissions problem or the file does not exist."
+		echo ""
+		exit
+	fi
+
+	# Report number of rows read
+	intNumberOfSourceItems=${#arrSourcesList[@]}
+	echo " [$intNumberOfSourceItems ROWS READ]"	
+
+	# Check sources list has something in it to process
+	if [ $intNumberOfSourceItems -eq 0 ]
+	then
+		echo ""
+		echo "The file is empty. Please add some source paths to the sources list file."
+		echo ""
+		exit
+	fi
+else
+	echo " [NOT FOUND]"
+	echo ""
+	echo "Please create a sources list file"
+	echo ""
+	exit
+fi
+
+
+
+# Check there is a target directory to copy the sources to and create if required
+echo -n "Checking Target Dir"
+if [ -d $strTargetRootDir ]
+then
+	echo " [OK]"
+else
+	echo -n " [CREATING]"
+	mkdir -p "$strTargetRootDir"
+	if [ $? -ne 0 ]
+	then
+		echo " [FAILED]"
+		exit
+	else
+		echo " [OK]"
+	fi
+fi
+
+
+
+# Checking target directory exists and we have access
+echo -n "Checking Target Directory is accessible"
+touch "$strTargetRootDir/." 2> /dev/null
+if [ $? -eq 0 ]
+then
+	echo " [OK]"
+else
+	echo ""
+	echo " [FAILED]"
+	echo ""
+	echo "Access to target directory was denied. Make sure you have write permission and that it even exists."
+	echo ""
+	exit
+fi
+
+
+
+# Loop through the sources list and copy each file
+echo ""
+echo "Starting backup of source files"
+intLoopCounter=1
+arrFailedSources=()
+
+echo -e "Status \t Type \t Source Path"
+
+for strSourceItem in "${arrSourcesList[@]}"
+do :
+	if [ $strSourceItem ]
+	then
+		if [ -f $strSourceItem ]
+		then
+			echo -n -e "\t FILE \t $strSourceItem"
+			install -D "$strSourceItem" "$strTargetRootDir$strSourceItem" 2> /dev/null
+			if [ $? -ne 0 ]
+			then
+				echo -e "\rFAILED\t"
+				arrFailedSources+="FILE  $strSourceItem"
+			else
+				echo -e "\rOK\t"
+			fi
+		fi
+
+		if [ -d $strSourceItem ]
+		then
+			echo -n -e "\t DIR \t $strSourceItem"
+			mkdir -p "$strTargetRootDir$strSourceItem" 2> /dev/null
+			rsync -a "$strSourceItem/" "$strTargetRootDir$strSourceItem/" 2> /dev/null
+			if [ $? -ne 0 ]
+			then
+				echo -e "\rFAILED\t"
+				arrFailedSources+="DIR  $strSourceItem"
+			else
+				echo -e "\rOK\t"
+			fi
+		fi
+	else
+		# Couldn't locate the file / dir at all
+		echo -e "MISSING\t N/A \t $strSourceItem"
+	fi
+
+	# Increment loop counter
+	let "intLoopCounter+=1"
+done
+
+# Setting owner and perms on the target Dir
+chown -R mub:mub "$strTargetRootDir"
+chmod 770 "$strTargetRootDir" -R
+
+
+# Display the list of bad paths.
+if [ ${#arrFailedSources[@]} -gt 0 ]
+then
+	echo ""
+	echo "The following sources could not be backed up"
+	for strFailedSources in ${arrFailedSources[@]}
+	do
+		echo "T$strFailedSources"
+	done
+fi
+
+echo -e "\nBackup Process Finished\n"
+
+# END

@@ -1,0 +1,70 @@
+   Cheat Sheet v1.2
+   ------------------------------------------------------------------------------
+   ## Install from aur process - example for filebrowser-bin
+   git clone https://aur.archlinux.org/filebrowser-bin.git    # Download the package from the AUR.
+   cd filebrowser-bin       # cd to the package directory you just downloaded
+   makepkg -s -i -r -c      # Make and Install
+   # Feel free to delete the downloaded source directory after install.
+   ------------------------------------------------------------------------------
+   yay -Syu               # Update all
+   yay -S packagename     # Install
+   yay -R packagename     # Remove
+   yay -Yc                # Clean out orphans
+   yay -Ps                # Package summary
+   sudo pacman -Syu               # Update all
+   sudo pacman -S packagename     # Install
+   sudo pacman -R packagename     # Renmove
+   sudo pacman -Qi packagename    # Show package dependencies
+   sudo pacman -Q | grep -i packagename  # seach list of installed packages
+   sudo pacman -Ql packagename           # list files installed by package (l is a lowecase L)
+   sudo flakpak install packagename
+   sudo flakpak remove packagename
+   recently-installed n           # n is the number of items to show. Errors if not specified. Note is an alias.
+   ------------------------------------------------------------------------------
+   service <<< aliass of sudo systemctl
+   systemctl list-timers
+   systemctl --user list-unit-files
+   systemctl --system list-unit-files
+   systemctl restart ligthdm              # Restart the desktop Manager.
+   sudo nano /etc/systemd/system/UNITNAME.service
+   sudo systemctl daemon-reload
+   ------------------------------------------------------------------------------
+   journalctl -xe
+   journalctl --list-boots
+   journalctl --since "2015-01-10 17:15:00"
+   journalctl --since "2015-01-10" --until "2015-01-11 03:00"
+   journalctl --since yesterday
+   journalctl -u serviceunitname.service
+   journalctl -u serviceunitname.service --since today
+   ------------------------------------------------------------------------------
+   dualsensectl battery
+   dualsensectl power-off
+   ------------------------------------------------------------------------------
+   # When adding add cert make sure http server block is present in nginx config
+   sudo certbot --nginx -d domain.name.tld   # add cert. Make sure http server block is present in nginx config
+   sudo certbot certficates       # List
+   sudo certbot delete            # List and give option to delete selected certs
+   sudo systemctl restart nginx   # restart nginx
+   config-nginx                   # Edit nginx
+   ------------------------------------------------------------------------------
+   faillock --user username --reset       # Reset account lockout
+   sudo ln -s <path to real dir> <path to where you want to link to be>
+   sudo blkid
+   shopt -s dotglob
+   cp -r ~/SourcesDir/* ~/
+   sudo usermod -aG group user
+   sudo useradd -m username -s /usr/sbin/nologin
+   sudo chown -R mub:mub /mnt
+   sudo chmod 775 /mnt -R
+   rate-mirrors --allow-root --protocol https arch | tee /etc/pacman.d/mirrorlist
+   ps -ft pts/1
+   du -h --max-depth=1         # get directory size
+   ls -l /dev/disk/by-uuid/    # Show disk uuid
+   ls | wc -l                  # count all files of dirs in the current dir
+   tail -n # -f <filename>
+   free -h      # Show RAM usage
+   df -h | grep -e '/dev/' -e Filesystem --colour=never     # Show disk usage
+   nmcli device status         # Network Link Status
+   grpck  or   pwck            #Fix shadow integrity issue
+   downgrade
+   glances
