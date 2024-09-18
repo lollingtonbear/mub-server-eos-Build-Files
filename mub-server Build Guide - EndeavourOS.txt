@@ -1,0 +1,1782 @@
+########################################################################################
+##### Mub-Server Build Guide - EndeavourOS (Arch Linux)
+########################################################################################
+
+# Version: 2.12
+# Date   : 2024/08/25
+# Author : Andy Sibthorp
+
+
+################## Exmaples ###############
+
+sudo chown -R mub:mub /mnt
+sudo chmod 775 /mnt -R
+sudo useradd -m username -s /usr/sbin/nologin   # create new user
+sudo usermod -aG groupname username             # add user to group
+sudo gpasswd -d groupname username              # remove user from group
+
+
+################## Notes on Permissions ###############
+
+#	Permission               rwx	Binary   Dec
+7	read, write and execute  rwx	111      7
+6	read and write           rw-	110	     6
+5	read and execute         r-x	101      5
+4	read only                r--	100      4
+3	write and execute        -wx	011      3
+2	write only               -w-	010      2
+1	execute only             --x	001      1
+0	none                     ---	000      0
+
+# U = user (owner)
+# G = group
+# O = other (everyone else)
+
+# You can also use ACL's to manage inheritance
+# Examples
+setfacl -d -m u::rwX,g::rwX,o::- /path/to/parent
+setfacl -d -m g:groupname:rwX /path/to/parent
+#show ACLs
+getfacl /path/to/dir
+
+
+################## Misc Notes ###############
+
+alias watch-cputemp='sudo watch -n1 echo "CPU Temp: $(expr $(</sys/class/thermal/thermal_zone0/temp) / 1000)c"'
+alias watch-gputemp='sudo watch -n1 vcgencmd measure_temp'
+alias watch-cpuclock='sudo watch -n1 vcgencmd measure_clock arm'
+
+# Show logs
+journalctl -xe
+
+#symlinks
+sudo ln -s <path to real dir> <path to where you want to link to be>
+
+
+################## IF Operators ##################
+
+Operator 	Description
+! EXPRESSION 	The EXPRESSION is false.
+-n STRING 	The length of STRING is greater than zero.
+-z STRING 	The lengh of STRING is zero (ie it is empty).
+STRING1 = STRING2 	STRING1 is equal to STRING2
+STRING1 != STRING2 	STRING1 is not equal to STRING2
+INTEGER1 -eq INTEGER2 	INTEGER1 is numerically equal to INTEGER2
+INTEGER1 -gt INTEGER2 	INTEGER1 is numerically greater than INTEGER2
+INTEGER1 -lt INTEGER2 	INTEGER1 is numerically less than INTEGER2
+-d FILE 	FILE exists and is a directory.
+-e FILE 	FILE exists.
+-r FILE 	FILE exists and the read permission is granted.
+-s FILE 	FILE exists and it's size is greater than zero (ie. it is not empty).
+-w FILE 	FILE exists and the write permission is granted.
+-x FILE 	FILE exists and the execute permission is granted.
+
+
+################## Colours in scripts ##################
+
+NOCOLOR='\033[0m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+ORANGE='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+LIGHTGRAY='\033[0;37m'
+DARKGRAY='\033[1;30m'
+LIGHTRED='\033[1;31m'
+LIGHTGREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+LIGHTBLUE='\033[1;34m'
+LIGHTPURPLE='\033[1;35m'
+LIGHTCYAN='\033[1;36m'
+WHITE='\033[1;37m'
+
+# alias whichpill='echo -e "You take the ${BLUE}blue pill${NOCOLOR}—the story ends, you wake up in bed and believe whatever you want to believe. You take the ${RED}red pill${NOCOLOR}—you stay in Wonderland, and I show you how deep the rabbit hole goes. Remember: all I’m offering is the ${YELLOW}truth${NOCOLOR}. Nothing more."';
+
+
+################## OnCalendar Examples ##################
+
+# run on the minute of every minute every hour of every day
+ OnCalendar=*-*-* *:*:00
+# run on the hour of every hour of every day
+ OnCalendar=*-*-* *:00:00
+# run every day
+ OnCalendar=*-*-* 00:00:00
+# run 11:12:13 of the first or fifth day of any month of the year
+# 2012, but only if that day is a Thursday or Friday
+ OnCalendar=Thu,Fri 2012-*-1,5 11:12:13
+
+
+################## Nginx Log Severity Levels ##################
+
+# https://www.digitalocean.com/community/tutorials/nginx-access-logs-error-logs
+
+# Nginx Log Severity Levels
+# emerg: Emergency messages when your system may be unstable.
+# alert: Alert messages of serious issues.
+# crit: Critical issues that need to be taken care of immediately.
+# error: An error has occured. Something went wrong while processing a page.
+# warn: A warning messages that you should look into it.
+# notice: A simple log notice that you can ignore.
+# info: Just an information messages that you might want to know.
+# debug: Debugging information used to pinpoint the location of error.
+
+
+################## Certbot ##################
+
+# https://wiki.archlinux.org/title/Certbot
+# https://certbot.eff.org/instructions?ws=nginx&os=arch&tab=standard
+# https://community.letsencrypt.org/t/archlinux-how-to-configur-lets-encrypt/39258
+
+yay -S certbot
+yay -S certbot-nginx
+
+certbot -nginx
+
+# Follow prompts
+
+# Enable auto renew check every 12 hours
+service enable certbot-renew.timer
+
+# Commands reference
+# sudo certbot --nginx -d domain.name.tld   # add cert. Make sure http server block is present in nginx config
+# sudo certbot certficates       # List
+# sudo certbot delete            # List and give option to delete selected certs
+# sudo systemctl restart nginx   # restart nginx
+# config-nginx                   # Edit nginx
+
+
+########################################################################################
+##### Make Bootable installation USB stick
+########################################################################################
+
+
+# Download Arch from here
+# https://archlinux.org/download/
+
+# Use balenaEtcher to write the image to a USB stick
+# On linux use something else.
+
+
+
+#########################################################################################
+##### Initial update and package management
+#########################################################################################
+
+
+# Update system
+yay -Syyu
+eos-update
+
+# Install Pamac
+yay -S pamac-aur
+
+
+
+#########################################################################################
+##### Disable SGX support
+#########################################################################################
+
+# The Lenovo M700 BIOS does not support SGX but the CPU does.
+# This creates an error in the Linux logs "x86/cpu: SGX disabled by BIOS"
+# It doesn't really cause any problems but it bothers me so this lets you disabling SGX suppo
+
+sudo nano /etc/kernel/cmdline
+
+# Add the following text to the end of the line in that file, then save and exit
+-------Start below do NOT include this line-------------------------------------------------------------------------------------------------------------
+nosgx
+-------END above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+
+# Rebuild the kernel
+sudo reinstall-kernels
+
+# Reboot to apply
+
+
+
+#########################################################################################
+##### Update and rate mirrors list
+#########################################################################################
+
+# ** NOTE ** - EndeavourOS has gui tools for this but you can do it by hand as below if you like.
+
+# This video explains how: https://www.youtube.com/watch?v=hCv8BoNDPxc
+
+# Install Rate-mirrors
+# AUR - https://aur.archlinux.org/packages/rate-mirrors-bin
+yay -S rate-mirrors-bin
+
+# Run this command to update and mirrors list
+rate-mirrors --allow-root --protocol https arch | tee /etc/pacman.d/mirrorlist
+
+
+
+#########################################################################################
+##### Increase number of failed PW attempts from 3
+#########################################################################################
+
+sudo nano /etc/security/limits.conf
+
+# Locate the line # deny 3
+# Remove the # and change the 3 to you preferred value
+
+
+
+#########################################################################################
+##### Common Tools
+#########################################################################################
+
+# Git - Should already be installed
+yay -S Git
+
+# neofetch - Should already be installed
+yay -S neofetch
+
+# neofetch
+yay -S notepadqq
+
+# ssh Server
+yay -S openssh
+
+# Wake on LAN
+yay -S wakeonlan
+
+# Install Utils
+yay -S iftop acl dnsutils net-tools gparted
+
+
+
+########################################################################################
+##### User profile personalisation stuff
+########################################################################################
+
+# Copy the Sources folder into /home/mub using WinSCP
+
+
+# Match every file in the directory without accidentally matching . or ..
+# Other wise wildcard file copies with error.
+shopt -s dotglob
+
+# Install profile files
+cp -r ~/Sources/home/mub/* ~/
+sudo cp -r ~/.bashrc /root
+sudo cp -r ~/.bash_aliases /root
+sudo ln /home/mub/cheat-sheet.txt /root/cheat-sheet.txt
+
+
+########################################################################################
+##### Mount Drives
+########################################################################################
+
+# Install ntfs-3g
+yay -S ntfs-3g
+
+# Create mount point dirs
+sudo mkdir /mnt/ssd-01
+sudo mkdir /mnt/ssd-02
+
+# Assign basic permissions
+sudo chmod 775 /mnt -R
+sudo chown -R root:mub /mnt/ssd-01
+sudo chown -R root:mub /mnt/ssd-02
+
+### Add SSD to fstab to auto mount
+# Make a note of the UUID of the drive. The UUID changes is you format the disk.
+sudo blkid
+
+# Edit the fstab
+sudo nano /etc/fstab
+
+# Add the following lines
+UUID=eb386007-05e7-4ffa-bdce-90bdaa0e31fc /mnt/ssd-01    ext4    defaults,noatime,nofail 0 0
+UUID=bb832533-e0b8-4e30-b03d-e3b14994ee22 /mnt/ssd-02    ext4    defaults,noatime,nofail 0 0
+
+# Check TRIM timer is enabled to auto TRIM SSD drivers
+sudo systemctl status fstrim.timer
+
+# Enable TRIM timer if not already done
+sudo systemctl enable fstrim.timer
+
+# Reboot or use;
+sudo mount -a
+
+
+#########################################################################################
+##### Uninstall the firewall - May change in the future but gets in the way a lot
+#########################################################################################
+
+# uninstall firewalld
+yay -R firewalld
+
+# Remove unwanted service file link
+sudo rm /etc/systemd/system/dbus-org.fedoraproject.FirewallD1.service
+
+
+
+#########################################################################################
+##### Bug fixes
+#########################################################################################
+
+# Stop "Unit dbus-org.freedesktop.home1.service not found" happening and showing in journal
+sudo rm /usr/lib/security/pam_systemd_home.so
+
+
+
+#########################################################################################
+##### Configure network
+#########################################################################################
+
+# DHCP will assign the correct IP address for each interface
+# you can use the following command to show the names of the interfaces and their IP addresses (things like ifconfig and iplinbk show don't do this)
+nmcli dev show <interfacename>
+
+
+# Update the hsots file to hold the assigned IPs
+sudo nano /etc/hosts
+
+# Remove the following line
+-------Start below do NOT include this line-------------------------------------------------------------------------------------------------------------
+127.0.1.1	mub-server.mubbery	mub-server
+-------END above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+# Add the following lines save and close
+-------Start below do NOT include this line-------------------------------------------------------------------------------------------------------------
+10.0.0.3	mub-server.mubbery	mub-server	mub-plex
+10.0.0.4	mub-server-ext.mubbery	mub-server-ext	mub-games
+-------END above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+
+# REBOOT to reload settings
+reboot
+
+
+#########################################################################################
+##### Create some unit timer templates
+#########################################################################################
+
+# Create timer template for every 10 minutes
+sudo nano /etc/systemd/system/every10minutes@.timer 
+
+
+# Copy the following text in to the every10minutes@.timer file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Run %i everyone 10 minutes
+
+[Timer]
+OnCalendar=*:0,10,20,30,40,50:00
+Persistent=true
+Unit=%i.service
+
+[Install]
+WantedBy=timers.target
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+
+# Create timer template for on the hour
+sudo nano /etc/systemd/system/everyhour@.timer 
+
+# Copy the following text in to the everyhour@.timer file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Run %i every hour
+
+[Timer]
+OnCalendar=*-*-* *:00:00
+Persistent=true
+Unit=%i.service
+
+[Install]
+WantedBy=timers.target
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+
+# Create timer template for daily at midnight
+sudo nano /etc/systemd/system/dailymidnight@.timer 
+
+# Copy the following text in to the dailymidnight@.timer file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Run %i everyday at midnight
+
+[Timer]
+OnCalendar=*-*-* 00:00:00
+Persistent=true
+Unit=%i.service
+
+[Install]
+WantedBy=timers.target
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+
+# Create timer template for daily at 5:00 am
+sudo nano /etc/systemd/system/daily0500@.timer
+
+# Copy the following text in to the daily0500@.timer file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Run %i everyday at 05:00
+
+[Timer]
+OnCalendar=*-*-* 05:00:00
+Persistent=true
+Unit=%i.service
+
+[Install]
+WantedBy=timers.target
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+
+# Create timer template for daily at 4:00 am
+sudo nano /etc/systemd/system/daily0400@.timer
+
+# Copy the following text in to the daily0400@.timer file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Run %i everyday at 04:00
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+Unit=%i.service
+
+[Install]
+WantedBy=timers.target
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+
+# Create timer template for every monday at 01:00 am
+sudo nano /etc/systemd/system/everymonday0300@.timer
+
+# Copy the following text in to the everymonday0300@.timer file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Run %i every Monday at 03:00
+
+[Timer]
+OnCalendar=Mon *-*-* 03:00:00
+Persistent=true
+Unit=%i.service
+
+[Install]
+WantedBy=timers.target
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+#########################################################################################
+##### Some Common Apps
+#########################################################################################
+
+# VLC video player
+yay -S vlc
+
+# Libre Office (usually already installed)
+yay -S libreoffice-fresh
+
+
+
+#########################################################################################
+##### Install Screen
+#########################################################################################
+
+
+# Install screen
+yay -S screen
+
+
+# Not this indented section might actually be wrong.
+		# Set correct perms on dir /run/screens
+		chmod 777 /run/screens -R
+
+
+		# For some reason screen adds a daily task to the standard tmpfiles cleanup service that resets the permissionson on the /run/screens dir to 755
+		# This stops non-root useres from running command in screen and gives the error "directory '/run/screen' must have mode 755"
+		# The fix is to:
+		#     1 chmod 777 /run/screens -R
+		#     2 Edit the /usr/lib/tmpfiles.d/screen.conf file and change 0755 to 0777 (instructions in next steps)
+
+		# Edit /usr/lib/tmpfiles.d/screen.conf
+		sudo nano /usr/lib/tmpfiles.d/screen.conf
+
+		# Change the contents so it say the below, save and exit
+		-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+		d /run/screens 0777 root root -
+		-------END above do NOT include this line----------------------------------------------------------------------------------------------------------------
+
+
+# Not sure if you need this
+sudo systemctl daemon-reload
+
+# Probably best to do a reboot
+
+
+
+########################################################################################
+##### Install Samba
+########################################################################################
+
+
+# Useful Ref
+# https://wiki.archlinux.org/title/Samba#Installation
+
+# Install samba
+yay -S samba
+
+# Copy the samba config
+sudo cp ~/Sources/etc/samba/smb.conf /etc/samba/smb.conf
+
+# Setup the user "mub" with a samba account
+sudo smbpasswd -a mub
+
+# Enable and Start samba
+sudo systemctl enable smb
+sudo systemctl start smb
+
+
+
+#########################################################################################
+##### Cockpit
+#########################################################################################
+
+# Cockpit is a general server web admin panel
+
+# https://wiki.archlinux.org/title/Cockpit
+
+# Install
+yay -S cockpit
+yay -S cockpit-pcp
+yay -S cockpit-storaged
+yay -S cockpit-navigator
+
+
+# Enable and start cockpit
+sudo systemctl daemon-reload
+sudo systemctl enable --now cockpit.socket
+sudo systemctl start cockpit
+
+
+# Admin web cockpit
+# http://mub-server04:9090
+
+
+
+#########################################################################################
+##### nginx
+#########################################################################################
+
+# https://wiki.archlinux.org/title/nginx
+
+# Install nginx
+yay -S nginx
+
+# Enable and Start samba
+sudo systemctl daemon-reload
+sudo systemctl enable nginx
+sudo systemctl start nginx
+
+
+
+########################################################################################
+##### Install Plex media server
+########################################################################################
+
+
+# Add plex user
+sudo useradd -m plex -s /usr/sbin/nologin
+sudo usermod -aG plex mub
+
+# Install
+yay -S plex-media-server
+
+sudo systemctl stop plexmediaserver
+sudo chown -R plex:plex /var/lib/plex
+sudo chmod 775 /var/lib/plex -R
+
+# If you have a backup of the plexmediaserver folder copy into the following ocaonplace now
+# Remember to set the permissions and ownership so that plex has full rights to it.
+# /var/lib/plex/plexmediaserver
+
+
+# Create Media Library folder structure
+sudo mkdir /mnt/ssd-01/Media-Library
+sudo mkdir /mnt/ssd-01/Media-Library/Audio-Books
+sudo mkdir /mnt/ssd-01/Media-Library/Films
+sudo mkdir /mnt/ssd-01/Media-Library/Music
+sudo mkdir /mnt/ssd-01/Media-Library/TV-Shows
+
+# Set owners, groups and permissions
+sudo chown -R plex:plex /mnt/ssd-01/Media-Library
+sudo chmod 775 /mnt/ssd-01/Media-Library -R
+
+# Create the desired tmp location for transcoding.
+sudo mkdir /tmp/Transcode
+sudo nano /etc/fstab
+
+# Add the following line to the bottom of the fstab file, then save and exit
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+tmpfs                                     /tmp/Transcode tmpfs   defaults,noatime,size=4G,mode=1777 0 0
+-------END above do NOT include this line-------------------------------------------------------------------------------------------------------------
+
+# Mount the new tmpfs drive
+sudo systemctl daemon-reload
+sudo mount -a
+
+# Enable then start the service
+sudo systemctl enable plexmediaserver
+sudo systemctl start plexmediaserver
+
+
+# ***** IMPORTANT ****
+# You must enable hardware transcoding and specify the temp dir as follows in the plex settings.
+# Settings > Transcode > Transcoder quality = Automatic
+# Settings > Transcode > Transcode Temporary Directory = /tmp
+# Settings > Transcode > Transcoder default throttle buffer = 60    (Think this is the default)
+# Settings > Transcode > Disable video stream transcoding = <unticked>
+# Settings > Transcode > Background transcoding x264 preset = <Very Fast>    (This is what I have set now and seems to look fine)
+# Settings > Transcode > Use hardware acceleration when available = <ticked>
+# Settings > Transcode > Use hardware-accelerated video encoding = <ticked>
+# Settings > Transcode > Hardware transcoding device = HD Graphics 530    (or whatever GPU you have)
+# Settings > Transcode > Maximum simultaneous video transcode = Unlimited    (Think this is the default)
+
+# Restart the plex service (Might not be needed but just to be sure)
+sudo systemctl stop plexmediaserver
+sudo systemctl start plexmediaserver
+
+# Now access it using the following URL: http://mub-server04:32400/web
+
+
+
+########################################################################################
+##### Install qBittorrent
+########################################################################################
+
+# Install
+sudo yay -S qbittorrent-nox
+
+# Add user and make mub a member of the user group
+sudo useradd -m qbuser -s /usr/sbin/nologin
+sudo usermod -aG qbuser plex
+sudo usermod -aG qbuser mub
+
+# Create initial settings
+sudo su qbuser
+qbittorrent-nox
+
+# Create torrent download area (If not already done)
+sudo mkdir /mnt/ssd-01/Torrents
+sudo mkdir /mnt/ssd-01/Torrents/incomplete
+sudo mkdir /mnt/ssd-01/Torrents/complete
+sudo mkdir /mnt/ssd-01/Torrents/torrent-files
+sudo mkdir /mnt/ssd-01/Torrents/inbox
+
+# Set owners, groups and permissions
+sudo chown -R qbuser:qbuser /mnt/ssd-01/Torrents
+sudo chmod 775 /mnt/ssd-01/Torrents -R
+
+
+# Copy the configuration files
+# Copy the qBittorrent folder from the Sources folder to the following location.
+# home/qbuser/.config/qBittorrent
+
+#set permissions on config files
+sudo chown -R qbuser:qbuser /home/qbuser/.config/qBittorrent
+sudo chmod -R 775 /home/qbuser/.config/qBittorrent
+
+# Create service to auto start
+sudo nano /etc/systemd/system/qbittorrent.service
+
+# Copy the following text in to the qbittorrent.service file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=qBittorrent
+Requires=network.target network-online.target
+After=network.target network-online.target
+
+
+[Service]
+Type=forking
+User=qbuser
+Group=qbuser
+UMask=002
+ExecStart=/usr/bin/qbittorrent-nox -d --webui-port=18080
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+# Start service
+sudo systemctl daemon-reload
+sudo systemctl enable qbittorrent
+sudo systemctl start qbittorrent
+
+# Goto WebUI here: http://mub-server04:18080
+
+# Configuration is shown in the screenshots in the Sources folder.
+
+
+
+#########################################################################################
+##### Util and Maintainence Scripts
+#########################################################################################
+
+# Copy scripts from Sources
+sudo cp ~/Sources/usr/local/bin/* /usr/local/bin
+sudo cp ~/Sources/usr/local/etc/* /usr/local/etc
+
+# Set file accesss and execute permissions
+sudo chmod -R 755 /usr/local/bin
+sudo chmod -R 755 /usr/local/etc
+
+# Create service to auto run server status report
+sudo nano /etc/systemd/system/get-detailed-server-status.service
+
+# Copy the following text in to the get-server-status.service file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Get Detailed Server Status
+
+[Service]
+User=mub
+Group=mub
+Type=oneshot
+ExecStart=/usr/local/bin/get-detailed-server-status
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+# Enable and Start timer
+sudo systemctl enable everyhour@get-detailed-server-status.timer
+sudo systemctl start everyhour@get-detailed-server-status.timer
+
+
+
+# Create service to auto run server maintainence
+sudo nano /etc/systemd/system/run-server-maintainence.service
+
+# Copy the following text in to the run-server-maintainence.service file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Run Server Maintainence
+
+[Service]
+User=mub
+Group=mub
+Type=oneshot
+ExecStart=/usr/local/bin/run-server-maintainence
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+# Enable and Start timer
+sudo systemctl enable daily0500@run-server-maintainence.timer
+sudo systemctl start daily0500@run-server-maintainence.timer
+
+
+#########################################################################################
+##### Backup and Achive Scripts
+#########################################################################################
+
+# Create service to auto run server maintainence
+sudo nano /etc/systemd/system/backup-server.service
+
+# Copy the following text in to the backup-server.service file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Backup Server Build Files and Data
+
+[Service]
+User=root
+Group=mub
+Type=oneshot
+ExecStart=/usr/local/bin/backup-server-build-files
+ExecStart=/usr/local/bin/backup-server-data
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+# Enable and Start timer
+sudo systemctl enable daily0400@backup-server.timer
+sudo systemctl start daily0400@backup-server.timer
+
+
+
+# Create service to auto run server maintainence
+sudo nano /etc/systemd/system/archive-newest-backup.service
+
+# Copy the following text in to the archive-newest-backup.service file
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Archive Newest Backup Files
+
+[Service]
+User=root
+Group=mub
+Type=oneshot
+ExecStart=/usr/local/bin/archive-newest-backup
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+
+# Enable and Start timer
+sudo systemctl enable everymonday0300@archive-newest-backup.timer
+sudo systemctl start everymonday0300@archive-newest-backup.timer
+
+
+#########################################################################################
+##### radarr
+#########################################################################################
+
+# Create user account
+sudo useradd -m radarr -s /usr/sbin/nologin
+sudo usermod -aG radarr mub
+
+# Install
+yay -S radarr
+
+# Enable and start service
+sudo systemctl enable radarr
+sudo systemctl start radarr
+
+# Admin page
+http://mub-server04:7878
+
+
+
+#########################################################################################
+##### sonarr
+#########################################################################################
+
+# Create user account
+sudo useradd -m sonarr -s /usr/sbin/nologin
+sudo usermod -aG sonarr mub
+
+# Install
+yay -S sonarr
+
+# Enable and start service
+sudo systemctl enable sonarr
+sudo systemctl start sonarr
+
+# Admin page
+http://mub-server04:8989
+
+
+#########################################################################################
+##### prowlarr
+#########################################################################################
+
+# Create user account
+sudo useradd -m prowlarr -s /usr/sbin/nologin
+sudo usermod -aG prowlarr mub
+
+# Install
+yay -S prowlarr
+
+# Enable and start service
+sudo systemctl enable prowlarr
+sudo systemctl start prowlarr
+
+# Admin page
+http://mub-server04:9696
+
+
+#########################################################################################
+##### FlareSolverr
+#########################################################################################
+
+# Install
+yay -S flaresolverr-bin
+
+# Create user account
+sudo useradd -m flaresolverr -s /usr/sbin/nologin
+sudo usermod -aG flaresolverr mub
+
+# Enable and start service
+sudo systemctl enable flaresolverr
+sudo systemctl start flaresolverr
+
+
+
+#########################################################################################
+##### Overseerr 
+#########################################################################################
+
+# Create user account
+sudo useradd -m overseerr -s /usr/sbin/nologin
+sudo usermod -aG overseerr mub
+
+# Install
+yay -S overseerr
+
+# Enable and start service
+sudo systemctl enable overseerr
+sudo systemctl start overseerr
+
+# Admin page - Note that when proxy mode is enabled this address only works for some things.
+http://mub-server04:9696
+# When Proxy mode is enabled use the following instead:
+https://overseerr.andysibthorp.co.uk/
+
+
+
+# Configure nginx as reverse proxy to make overseerr available externally.
+
+# Edit the nginx config
+sudo nano /etc/nginx/nginx.conf
+
+# paste in the following the save and close
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+server {
+	listen 5055;
+    server_name overseerr.andysibthorp.co.uk;
+    location / {
+        proxy_pass http://localhost:5055;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # error_log /var/log/nginx/error.log debug;
+}
+-------END above do NOT include this line-----------------------------------------------------------------------------------------------------------------
+
+# restart nginx
+sudo systemctl restart nginx
+
+# Make sure you have the port forward setup for port 5055
+
+# To make this an https site use certbot (See section near the start of this doc)
+# and
+# remove port forward for port 5055 and the listen 5055; entry from nginx.conf
+# and
+# port forward port 443
+
+
+
+
+#########################################################################################
+##### Install filebrowser
+#########################################################################################
+
+
+# https://filebrowser.org/installation
+
+# Install
+# NOTE THIS WAS NOT WORKING FOR INSTALLED USING MANUAL AUR INSTALL METHOD
+# yay -S filebrowser
+git clone https://aur.archlinux.org/filebrowser-bin.git
+cd filebrowser-bin
+makepkg -s -i -r -c 
+
+
+# Add user and make mub a member of the user group
+sudo useradd -m filebrowser -s /usr/sbin/nologin
+sudo usermod -aG filebrowser mub
+
+# Create hosting area
+sudo mkdir -p /opt/filebrowser/rootdir
+
+# Configure
+sudo filebrowser config init -d /opt/filebrowser/filebrowser.db
+sudo filebrowser -d /opt/filebrowser/filebrowser.db config set --address 10.0.0.4
+sudo filebrowser -d /opt/filebrowser/filebrowser.db config set --port 27700
+sudo filebrowser -d /opt/filebrowser/filebrowser.db config set --branding.name "The Mubbery"
+sudo filebrowser -d /opt/filebrowser/filebrowser.db config set --log /opt/filebrowser/filebrowser.log
+sudo filebrowser -d /opt/filebrowser/filebrowser.db config set --root /opt/filebrowser/rootdir
+sudo filebrowser -d /opt/filebrowser/filebrowser.db users add mub Kiss1ng.fb --perm.admin
+
+# Reset dir / file permissions
+sudo chown -R filebrowser:filebrowser /opt/filebrowser
+sudo chmod 770 /opt/filebrowser -R
+
+# Create service to auto start
+sudo nano /etc/systemd/system/filebrowser.service
+
+# Copy the following text in to the filebrowser.service file
+-------Start below do NOT include this line-------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Filebrowser Server
+
+After=network.target network-online.target
+
+[Service]
+User=filebrowser
+Group=filebrowser
+Nice=5
+KillMode=control-group
+SuccessExitStatus=0 1
+
+ProtectHome=true
+ProtectSystem=full
+PrivateDevices=true
+NoNewPrivileges=true
+PrivateTmp=true
+InaccessibleDirectories=/root /sys /srv -/lost+found
+
+ReadWriteDirectories=/opt/filebrowser
+WorkingDirectory=/opt/filebrowser
+
+ExecStart=/usr/bin/filebrowser -d /opt/filebrowser/filebrowser.db
+
+ExecReload=/bin/kill -9 $MAINPID
+ExecReload=/usr/bin/filebrowser -d /opt/filebrowser/filebrowser.db
+
+ExecStop=/bin/kill -9 $MAINPID
+
+Restart=on-failure
+RestartSec=3s
+
+[Install]
+WantedBy=multi-user.target
+-------END above do NOT include this line----------------------------------------------------------------------------------------------------------------
+
+sudo systemctl enable filebrowser
+sudo systemctl start filebrowser
+
+# Site address
+# http://mub-server03:18888
+
+# Use the web admin to configure as needed.
+
+# User web admin to add an account for Seb to access the Minecraft schematics directories
+sudo usermod -aG mcserver filebrowser
+sudo chmod 777 /mnt/ssd-02/Game-Servers/Minecraft/MubberyMC/plugins/FastAsyncWorldEdit/schematics/ -R
+sudo chmod 777 /mnt/ssd-02/Game-Servers/Minecraft/GroovyMC/plugins/FastAsyncWorldEdit/schematics/ -R
+sudo chmod 777 /mnt/ssd-02/Game-Servers/Minecraft/BehaveMC/plugins/FastAsyncWorldEdit/schematics/ -R
+sudo ln -s /mnt/ssd-02/Game-Servers/Minecraft/MubberyMC/plugins/FastAsyncWorldEdit/schematics/ /opt/filebrowser/rootdir/users/seb/"Schematics for MubberyMC"
+sudo ln -s /mnt/ssd-02/Game-Servers/Minecraft/GroovyMC/plugins/FastAsyncWorldEdit/schematics/ /opt/filebrowser/rootdir/users/seb/"Schematics for GroovyMC"
+sudo ln -s /mnt/ssd-02/Game-Servers/Minecraft/BehaveMC/plugins/FastAsyncWorldEdit/schematics/ /opt/filebrowser/rootdir/users/seb/"Schematics for TestMC"
+
+
+
+#########################################################################################
+##### Create Game Servers Folder
+#########################################################################################
+
+# Create gameservers Folder
+sudo mkdir /mnt/ssd-02/Game-Servers
+sudo chown root:mub /mnt/ssd-02/Game-Servers
+sudo chmod 775 /mnt/ssd-02/Game-Servers
+
+
+
+#########################################################################################
+##### Java Runtimes
+#########################################################################################
+
+# Seach for java if you need to.
+yay -SS java | grep jre
+
+# Java 8
+yay -S jre8-openjdk
+
+# Java 17
+yay -S jre17-openjdk
+
+# Java 21
+yay -S jre21-openjdk
+
+# Configure default Java to be 17
+# https://rtfm.co.ua/en/arch-linux-set-a-java-version/
+archlinux-java set java-21-openjdk
+
+# Create symnlinks to each java version using the standard "java##". This used by the mcserver service unit file.
+sudo ln -s /usr/lib/jvm/java-8-openjdk/jre/bin/java /usr/bin/java8
+sudo ln -s /usr/lib/jvm/java-17-openjdk/bin/java /usr/bin/java17
+sudo ln -s /usr/lib/jvm/java-21-openjdk/bin/java /usr/bin/java21
+
+
+
+#########################################################################################
+##### Minecraft Server - Template Service
+#########################################################################################
+
+# Add mcserver account if not already done
+sudo useradd -m mcserver -s /usr/sbin/nologin
+sudo usermod -aG mcserver mub
+
+# Create the Minecraft root location
+mkdir -p /mnt/ssd-02/Game-Servers/Minecraft
+
+# Set permissions and owner
+sudo chown -R mcserver:mcserver /mnt/ssd-02/Game-Servers/Minecraft
+sudo chmod 775 /mnt/ssd-02/Game-Servers/Minecraft -R
+
+# mcrcon - Minecraft console
+yay -S mcrcon
+
+# Setup the service template
+# Used this for some reference - https://minecraft.fandom.com/wiki/Tutorials/Server_startup_script
+sudo nano /etc/systemd/system/mcserver@.service
+
+# Copy paste the following into the service file.
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Minecraft Server %i
+
+After=network.target network-online.target
+
+[Service]
+User=mcserver
+Group=mcserver
+Nice=0
+KillMode=control-group
+SuccessExitStatus=0 1 143
+
+ProtectHome=true
+ProtectSystem=full
+PrivateDevices=true
+NoNewPrivileges=true
+PrivateTmp=true
+InaccessibleDirectories=/root /sys /srv -/lost+found
+
+# Read Server setup values in environment file
+EnvironmentFile=/mnt/ssd-02/Game-Servers/Minecraft/%i/mcserver-service.conf
+
+# Set Java Run Command using the version of java set in the EnvironmentFile
+Environment="JAVACMD=/usr/bin/java${JAVAVER}"
+
+# Paths
+ReadWriteDirectories=/mnt/ssd-02/Game-Servers/Minecraft/%i
+WorkingDirectory=/mnt/ssd-02/Game-Servers/Minecraft/%i
+
+# Auto Restart Settings
+Restart=always
+RestartSec=10
+
+# Start
+ExecStart=/usr/bin/bash -c "${JAVACMD} ${JAVAPARAMS}"
+
+# Reload
+
+ExecReload=/usr/bin/mcrcon -H ${MCSERVER_IP} -P ${RCON_PORT} -p ${RCON_PW} save-all
+ExecReload=/usr/bin/mcrcon -H ${MCSERVER_IP} -P ${RCON_PORT} -p ${RCON_PW} stop
+ExecReload=/bin/sh -c '/bin/sleep ${SHUTDOWN_WAIT_TO_END}'
+ExecReload=/usr/bin/bash -c "${JAVACMD} ${JAVAPARAMS}"
+
+# Stop
+ExecStop=/usr/bin/mcrcon -H ${MCSERVER_IP} -P ${RCON_PORT} -p ${RCON_PW} save-all
+ExecStop=/usr/bin/mcrcon -H ${MCSERVER_IP} -P ${RCON_PORT} -p ${RCON_PW} stop
+
+[Install]
+WantedBy=multi-user.target
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+
+
+#########################################################################################
+##### Setup MubberyMC
+#########################################################################################
+
+# Create folder for MubberyMC
+mkdir -p /mnt/ssd-02/Game-Servers/Minecraft/MubberyMC
+sudo setfacl -d -m g:mcserver:rwx -R /mnt/ssd-02/Game-Servers/Minecraft      # This is needed so that files uploaded using filebrowser or SMB are still accessible to Minecraft
+
+
+# Create service config file. This replaces the default settings in the service file.
+# There are 2 ways to do this. Either copy the file from the sources if you already have one or create a new one from scratch.
+
+# Option 1 - Copy the Minecraft server config and launcher script. The source is just an example, restore from whereever you put it.
+sudo cp ~/Sources/mnt/ssd-02/Game-Servers/Minecraft/MubberyMC/* /mnt/ssd-02/Game-Servers/Minecraft/MubberyMC
+
+
+# Option 2 - Configure new Service for MubberyMC
+sudo nano /mnt/ssd-02/Game-Servers/Minecraft/MubberyMC/mcserver-service.conf
+
+# Copy paste the following into the file.
+# DOUBLE CHECK THESE SETTINGS
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+JARFILE=paper.jar
+JAVAVER=21
+JVMXMS=4G
+JVMXMX=4G
+MCSERVER_IP=10.1.0.3
+RCON_PORT=27742
+RCON_PW=PenguinsPlease
+SERVERDIR=MubberyMC
+SHUTDOWN_WAIT_TO_END=10
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+# Set permissions and owner
+sudo chown -R mcserver:mcserver /mnt/ssd-02/Game-Servers/Minecraft/MubberyMC
+sudo chmod 775 /mnt/ssd-02/Game-Servers/Minecraft/MubberyMC -R
+
+
+#Enable the service (You can create more MC service instances by just change the name after the @)
+sudo systemctl enable mcserver@MubberyMC
+
+# You can now start the MubberyMC server when you are ready
+sudo systemctl start mcserver@MubberyMC
+
+
+
+#########################################################################################
+##### Setup GroovyMC
+#########################################################################################
+
+# Create folder for MubberyMC
+mkdir -p /mnt/ssd-02/Game-Servers/Minecraft/GroovyMC
+sudo setfacl -d -m g:mcserver:rwx -R /mnt/ssd-02/Game-Servers/Minecraft      # This is needed so that files uploaded using filebrowser or SMB are still accessible to Minecraft
+
+# Create service config file. This replaces the default settings in the service file.
+# There are 2 options to do this. Either copy the file from the sources if you already have one or create a new one from scratch.
+
+# Option 1 - Copy the Minecraft server config and launcher script. The source is just an example, restore from whereever you put it.
+sudo cp ~/Sources/mnt/ssd-02/Game-Servers/Minecraft/GroovyMC/* /mnt/ssd-02/Game-Servers/Minecraft/GroovyMC
+# Option 1 - END
+
+# Option 2 - Configure new Service for GroovyMC
+sudo nano /mnt/ssd-02/Game-Servers/Minecraft/GroovyMC/mcserver-service.conf
+
+# Copy paste the following into the file.
+# DOUBLE CHECK THESE SETTINGS
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+JARFILE=paper.jar
+JAVAVER=17
+JVMXMS=4G
+JVMXMX=4G
+MCSERVER_IP=10.1.0.3
+RCON_PORT=27762
+RCON_PW=1RedstoneRock
+SERVERDIR=GroovyMC
+SHUTDOWN_WAIT_TO_END=10
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+# Option 2 - END
+
+# Set permissions and owner
+sudo chown -R mcserver:mcserver /mnt/ssd-02/Game-Servers/Minecraft/GroovyMC
+sudo chmod 775 /mnt/ssd-02/Game-Servers/Minecraft/GroovyMC -R
+
+#Enable the service (You can create more MC service instances by just change the name after the @)
+sudo systemctl enable mcserver@GroovyMC
+
+# You can now start the GroovyMC server when you are ready
+sudo systemctl start mcserver@GroovyMC
+
+
+
+
+#########################################################################################
+##### Setup BehaveMC
+#########################################################################################
+
+# Create folder for BehaveMC
+mkdir -p /mnt/ssd-02/Game-Servers/Minecraft/BehaveMC
+sudo setfacl -d -m g:mcserver:rwx -R /mnt/ssd-02/Game-Servers/Minecraft      # This is needed so that files uploaded using filebrowser or SMB are still accessible to Minecraft
+
+
+# Create service config file. This replaces the default settings in the service file.
+# There are 2 ways to do this. Either copy the file from the sources if you already have one or create a new one from scratch.
+
+# Option 1 - Copy the Minecraft server config and launcher script. The source is just an example, restore from whereever you put it.
+sudo cp ~/Sources/mnt/ssd-02/Game-Servers/Minecraft/BehaveMC/* /mnt/ssd-02/Game-Servers/Minecraft/BehaveMC
+
+
+# Option 2 - Configure new Service for BehaveMC
+sudo nano /mnt/ssd-02/Game-Servers/Minecraft/BehaveMC/mcserver-service.conf
+
+# Copy paste the following into the file.
+# DOUBLE CHECK THESE SETTINGS
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+JARFILE=paper.jar
+JAVAVER=21
+JVMXMS=4G
+JVMXMX=4G
+MCSERVER_IP=10.1.0.3
+RCON_PORT=27752
+RCON_PW=PenguinsPlease
+SERVERDIR=BehaveMC
+SHUTDOWN_WAIT_TO_END=10
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+# Set permissions and owner
+sudo chown -R mcserver:mcserver /mnt/ssd-02/Game-Servers/Minecraft/BehaveMC
+sudo chmod 775 /mnt/ssd-02/Game-Servers/Minecraft/BehaveMC -R
+
+
+#Enable the service (You can create more MC service instances by just change the name after the @)
+sudo systemctl enable mcserver@BehaveMC
+
+# You can now start the BehaveMC server when you are ready
+sudo systemctl start mcserver@BehaveMC
+
+
+
+#########################################################################################
+##### Steam Client
+#########################################################################################
+
+# Install steam
+yay -S steam
+
+
+
+#########################################################################################
+##### Terraria server
+#########################################################################################
+
+# Guide
+# https://terraria.wiki.gg/wiki/Guide:Setting_up_a_Terraria_server
+
+# Download the dedicated server files directly from terraria.org by clicking the "Dedicated Server" link at the bottom of the page
+
+# Add a user account for the service
+sudo useradd -m terrariaserver -s /usr/sbin/nologin
+sudo usermod -aG terrariaserver mub
+
+# Make the folder to put the server files in
+sudo mkdir /mnt/ssd-02/Game-Servers/Terraria
+sudo chmod 775 /mnt/ssd-02/Game-Servers/Terraria -R
+sudo chown terrariaserver:terrariaserver -R /mnt/ssd-02/Game-Servers/Terraria
+
+# Extract the Linux server from the zip to
+# /mnt/ssd-02/Game-Servers/Terraria
+
+# Copy the TerrariaServer-Service script from the Sources folder to the Terraria folder
+
+# Create a config file (There is a copy of this file in the sources folder)
+sudo nano /mnt/ssd-02/Game-Servers/Terraria/serverconfig.txt
+
+# Paste in the following
+-------Start below do NOT include this line--------------------------------------------------------------------------------------------------------------
+worldpath=/mnt/ssd-02/Game-Servers/Terraria/worlds
+world=/mnt/ssd-02/Game-Servers/Terraria/worlds/The_Mubbery.wld
+autocreate=3
+worldname=The_Mubbery
+difficulty=0
+maxplayers=8
+ip=10.0.0.4
+port=7777
+password=notminecraft
+motd=Please don’t cut the purple trees!
+worldrollbackstokeep=2
+banlist=banlist.txt
+secure=1
+language=en-US
+npcstream=60
+priority=1
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+
+# Create the service
+sudo nano /etc/systemd/system/terraria.service
+
+# Paste in the following
+-------Start below do NOT include this line---------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Terraria Server via Screen
+
+After=network.target network-online.target
+
+[Service]
+User=terrariaserver
+Group=terrariaserver
+Nice=0
+KillMode=control-group
+SuccessExitStatus=0 1
+
+ProtectHome=true
+ProtectSystem=full
+PrivateDevices=true
+NoNewPrivileges=false
+PrivateTmp=true
+InaccessibleDirectories=/root /sys /srv /mnt -/lost+found
+
+# Paths
+ReadWriteDirectories=/mnt/ssd-02/Game-Servers/Terraria
+WorkingDirectory=/mnt/ssd-02/Game-Servers/Terraria
+
+ExecStart=/mnt/ssd-02/Game-Servers/Terraria/TerrariaServer-Launcher --start
+
+ExecReload=/mnt/ssd-02/Game-Servers/Terraria/TerrariaServer-Launcher --stop
+ExecReload=/bin/sh -c '/bin/sleep 5'
+ExecReload=/mnt/ssd-02/Game-Servers/Terraria/TerrariaServer-Launcher --start
+
+ExecStop=/mnt/ssd-02/Game-Servers/Terraria/TerrariaServer-Launcher --stop
+
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
+
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+# Enable the service
+sudo systemctl daemon-reload
+sudo systemctl enable terraria
+
+# When ready start service
+sudo systemctl start terraria
+
+
+
+#########################################################################################
+##### Wine
+#########################################################################################
+
+# Install Wine
+# https://wine.htmlvalidator.com/install-wine-on-arch-linux.html
+
+# Install Pre-reqs
+yay -S wine wine-mono wine-gecko
+
+# Install Winetricks
+yay -S winetricks
+
+# To See version
+wine --version
+
+# Install .net 4.8 - Run this from a GUI
+sudo winetricks dotnet48
+
+
+
+# Notes:
+# To configure Wine - Run this from a GUI
+wine winecfg
+
+# To open Windows Explorer - Run this from a GUI
+wine explorer
+
+
+
+#########################################################################################
+##### Mono install
+#########################################################################################
+
+# Install Mono.
+# https://linuxhint.com/install-mono-linux-mint/
+yay -S mono
+
+
+
+#########################################################################################
+##### Assetto Corsa
+#########################################################################################
+
+# DEPENDS ON - Wine
+# DEPENDS ON - Mono
+# DEPENDS ON - .NET 4.8
+
+# Is native linux version
+
+# Add a user account for the service
+sudo useradd -m acserver -s /usr/sbin/nologin
+sudo usermod -aG acserver mub
+
+# Make the folder to put the server files in
+sudo mkdir /mnt/ssd-02/Game-Servers/AssettoCorsa
+sudo chmod 775 /mnt/ssd-02/Game-Servers/AssettoCorsa -R
+sudo chown acserver:acserver -R /mnt/ssd-02/Game-Servers/AssettoCorsa
+
+# Locate the Assetto Corsa Server files in the Assetto Corsa folder on a machine that has the Assetto Corsa game installed
+# Copy those files into the following directory /mnt/ssd-02/Game-Servers/AssettoCorsa
+
+
+# Create the server launcher script
+sudo nano /mnt/ssd-02/Game-Servers/AssettoCorsa/acServer.sh
+
+# Paste in the following then save and close
+
+-------Start below do NOT include this line---------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+
+### INFORMATION ######################################################################################################
+
+# Script Name    :  acServer.sh
+# Orginal Author :  Andy Sibthorp
+
+cd /mnt/ssd-02/Game-Servers/AssettoCorsa
+/mnt/ssd-02/Game-Servers/AssettoCorsa/acServer
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+
+
+# Create the service
+sudo nano /etc/systemd/system/acserver.service
+
+#  Paste in the following then save and close
+
+-------Start below do NOT include this line---------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Assetto Corsa Server
+
+Wants=network.target
+After=network.target
+
+[Service]
+User=acserver
+Group=acserver
+Nice=0
+KillMode=control-group
+SuccessExitStatus=0 1
+
+ProtectHome=true
+ProtectSystem=full
+PrivateDevices=true
+NoNewPrivileges=true
+PrivateTmp=true
+InaccessibleDirectories=/root /sys /srv /media -/lost+found
+
+# Paths
+ReadWriteDirectories=/mnt/ssd-02/Game-Servers/AssettoCorsa
+WorkingDirectory=/mnt/ssd-02/Game-Servers/AssettoCorsa
+
+ExecStart=/mnt/ssd-02/Game-Servers/acServer.sh
+
+#ExecReload=
+#ExecStop=
+
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+# Enable the service
+sudo systemctl daemon-reload
+sudo systemctl enable acserver
+
+# When ready start service
+sudo systemctl start acserver
+
+
+
+
+#########################################################################################
+##### Wreckfest Dedicated Server
+#########################################################################################
+
+# DEPENDS ON - Wine
+# DEPENDS ON - .NET 4.8
+
+
+# Serer setup guide
+# https://steamcommunity.com/app/228380/discussions/0/613938693082657261/
+
+# How to add allow mods
+# https://steamcommunity.com/sharedfiles/filedetails/?id=1623787352
+
+# Look up player ID for mods and admins
+# https://steamid.io/lookup/76561198035323765
+
+# Add a user account for the service
+sudo useradd -m wreckfestserver -s /usr/sbin/nologin
+sudo usermod -aG wreckfestserver mub
+
+# Make the folder to put the server files in
+sudo mkdir /mnt/ssd-02/Game-Servers/Wreckfest
+sudo chmod 775 /mnt/ssd-02/Game-Servers/Wreckfest -R
+sudo chown wreckfestserver -R /mnt/ssd-02/Game-Servers/Wreckfest
+
+# Copy the wreckfest dedicated server files, from the wreckfest dedicated server folder on a machine that has wreckfest dedicated server installed, into the following directory
+/mnt/ssd-02/Game-Servers/Wreckfest
+
+# Create the service
+sudo nano /etc/systemd/system/wreckfestserver.service
+
+# Paste in the following
+-------Start below do NOT include this line---------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=Wreckfest Server
+
+Wants=network.target
+After=network.target
+
+[Service]
+User=acserver
+Group=acserver
+Nice=0
+KillMode=control-group
+SuccessExitStatus=0 1
+
+ProtectHome=true
+ProtectSystem=full
+PrivateDevices=true
+NoNewPrivileges=true
+PrivateTmp=true
+InaccessibleDirectories=/root /sys /srv /media -/lost+found
+
+# Paths
+ReadWriteDirectories=/mnt/ssd-02/Game-Servers/Wreckfest
+WorkingDirectory=/mnt/ssd-02/Game-Servers/Wreckfest
+
+ExecStart=/usr/bin/wine /mnt/ssd-02/Game-Servers/Wreckfest/Wreckfest_x64.exe -s server_config=server_config.cfg
+#ExecReload=
+#ExecStop=
+
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+
+
+#########################################################################################
+##### BeamMP server + Dependencies
+#########################################################################################
+
+# Full setup guide
+# https://wiki.beammp.com/en/home/server-installation
+# https://github.com/BeamMP/BeamMP-Server#build-instructions
+
+
+# Add a user account for the service
+sudo useradd -m beamserver -s /usr/sbin/nologin
+sudo usermod -aG beamserver mub
+
+# Make the folder to put the server files in
+sudo mkdir /mnt/ssd-02/Game-Servers/BeamMP
+sudo chmod 775 /mnt/ssd-02/Game-Servers/BeamMP -R
+sudo chown beamserver -R /mnt/ssd-02/Game-Servers/BeamMP
+
+# Extract the zip to
+# /mnt/ssd-02/Game-Servers/BeamMP
+
+# Install dependencies
+yay -S libz-dev rapidjson-dev lua5.3 lua5.3-dev libssl-dev libwebsocketpp-dev libcurl4-openssl-dev
+
+#1 Download server zip from here (Windows and Linux version are in the same download)
+# https://www.beammp.com/
+
+#2 Extract the BeamMP-Server.zip. You will end up with a BeamMP-Server-linux file, among others which you can ignore for now. Make a folder somewhere and put the BeamMP-Server-linux there. This is where your server will live.
+
+#3 Open a terminal, go to that folder you put the BeamMP-Server-linux in, and run chmod +x BeamMP-Server-linux. This ensures that you have permissions to run it.
+
+#4 Start the server once by running it with ./BeamMP-Server-linux. This will generate all the necessary files for you, once you see text you can close it and proceed to the next step. You should see a Server.log file and a ServerConfig.toml file next to your BeamMP-Server-linux.
+
+#5 (optional) It is heavily recommended to set up a user called beammpserver (or similar), as we do NOT recommend running the server as root, sudo or with your personal user account. You should then take steps to make sure that you start the server as this user only.
+
+# Edit the config file
+sudo nano /mnt/ssd-02/Game-Servers/BeamMP/ServerConfig.toml
+
+# Paste in the following (The AuthKey is mine)
+-------Start below do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+# This is the BeamMP-Server config file.
+# Help & Documentation: `https://wiki.beammp.com/en/home/server-maintenance`
+# IMPORTANT: Fill in the AuthKey with the key you got from `https://beammp.com/k/dashboard` on the left under "Keys"
+
+[General]
+AuthKey = '4253196c-2f3b-4684-b7dd-343efbe140a6'
+Debug = false
+Description = 'A BeamMP Server'
+
+# All built in maps. Switch comment marked to change map.
+Map = '/levels/gridmap_v2/info.json'
+# Map = '/levels/automation_test_track/info.json'
+# Map = '/levels/east_coast_usa/info.json'
+# Map = '/levels/hirochi_raceway/info.json'
+# Map = '/levels/italy/info.json'
+# Map = '/levels/jungle_rock_island/info.json'
+# Map = '/levels/industrial/info.json'
+# Map = '/levels/small_island/info.json'
+# Map = '/levels/smallgrid/info.json'
+# Map = '/levels/utah/info.json'
+# Map = '/levels/west_coast_usa/info.json'
+# Map = '/levels/driver_training/info.json'
+# Map = '/levels/derby/info.json'
+
+MaxCars = 1
+MaxPlayers = 10
+Name = 'The Mubbery'
+Port = 30814
+Private = true
+ResourceFolder = 'Resources'
+
+# You can turn on/off the SendErrors message you get on startup here
+SendErrorsShowMessage = false
+
+# If SendErrors is `true`, the server will send helpful info about crashes and other issues back to the BeamMP developers. This info may include your config, who is on your server at the time of the error, and similar general information. This kind of data is vital in helping us diagnose and fix issues faster. This has no impact on server performance. You can opt-out of this system by setting this to `false`.
+SendErrors = true
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+
+
+# Create the service
+sudo nano /etc/systemd/system/beammp.service
+
+# Paste in the following
+-------Start below do NOT include this line---------------------------------------------------------------------------------------------------------------
+[Unit]
+Description=BeamMP Server
+
+Wants=network.target
+After=network.target
+
+[Service]
+User=beamserver
+Group=beamserver
+Nice=0
+KillMode=control-group
+SuccessExitStatus=0 1
+
+ProtectHome=true
+ProtectSystem=full
+PrivateDevices=true
+NoNewPrivileges=true
+PrivateTmp=true
+InaccessibleDirectories=/root /sys /srv /media -/lost+found
+
+# Paths
+ReadWriteDirectories=/mnt/ssd-02/Game-Servers/BeamMP
+WorkingDirectory=/mnt/ssd-02/Game-Servers/BeamMP
+
+ExecStart=/mnt/ssd-02/Game-Servers/BeamMP/BeamMP-Server-linux
+#ExecReload=
+#ExecStop=
+
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
+-------Stop above do NOT include this line---------------------------------------------------------------------------------------------------------------
+
+# Enable the service
+sudo systemctl daemon-reload
+sudo systemctl enable beammp
+
+# When ready start service
+sudo systemctl start beammp
+
+
+
+#########################################################################################
+##### Finalisation
+#########################################################################################
+
+# Give mub access to plex and qbittorrent groups
+sudo usermod -aG plex mub
+sudo usermod -aG acserver mub
+sudo usermod -aG wreckfest mub
+sudo usermod -aG mcserver mub
+sudo usermod -aG qbuser mub
+sudo usermod -aG qbuser plex
+sudo usermod -aG plex qbuser
+sudo usermod -aG beamserver mub
+sudo usermod -aG terrariaserver mub
+sudo usermod -aG sonarr mub
+sudo usermod -aG sonarr plex
+sudo usermod -aG radarr mub
+sudo usermod -aG radarr plex
+sudo usermod -aG mysql mub
+
+
+# reload systemctl daemon
+sudo systemctl daemon-reload
+
+# Do a final update
+yay -Syu
+eos-update
+
+
+# Reboot now just to give you a clean start to enjoy your server.
